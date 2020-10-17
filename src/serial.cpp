@@ -54,12 +54,12 @@ void serial::write(std::vector<std::uint8_t>& bytes)
 {
 	std::cout << "sending " << bytes.size() << " bytes..." << "\n";
 
-	_serial_port << _prefix << ' ';
+	_serial_port << (0xFF & _prefix) << ' ';
 
 	for (const auto& byte : bytes)
 	{
-	  _serial_port << byte << ' ';
-	  std::cout << get_hex_value(byte) << " ";
+	  _serial_port << (0xFF & byte) << ' ';
+	  std::cout << get_hex_value(byte) << ' ';
 	}
 	std::cout << "\n";
 
