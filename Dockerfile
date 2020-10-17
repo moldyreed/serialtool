@@ -4,9 +4,11 @@ RUN  apt update && apt install -y libserial-dev \
 								  build-essential \ 
 								  libtool \
 								  pkg-config \
-								  libboost-program-options-dev
+								  libboost-program-options-dev \
+								  picocom \ 
+								  socat
 WORKDIR /searialtool
 COPY . /searialtool/.
 RUN mkdir /searialtool/build
 RUN cd /searialtool/build && cmake .. && make && make install
-ENTRYPOINT ["serial_tool"]
+ENTRYPOINT ["sh","/searialtool/start.sh"]

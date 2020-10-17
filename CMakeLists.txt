@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.10)
 
 project(serial_tool CXX)
 
@@ -23,6 +23,7 @@ add_executable(
     ${PROJECT_NAME}
 
     ${PROJECT_SOURCE_DIR}/src/main.cpp
+    ${PROJECT_SOURCE_DIR}/src/serial.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SERIAL_INCLUDE_DIRS})
