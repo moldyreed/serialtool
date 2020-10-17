@@ -15,10 +15,12 @@ public:
 			const std::uint8_t& prefix);
 	~serial();
 
-	void open();
+	void 						open();
 
-	void read();
-	void write(std::vector<std::uint8_t>& bytes);
+	std::string 				readline();
+	std::vector<std::uint8_t> 	read();
+	
+	void 						write(std::vector<std::uint8_t>& bytes);
 
 private:
 	const std::string 	_port_path;

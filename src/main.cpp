@@ -2,10 +2,25 @@
 #include <vector>
 #include <thread>
 #include <arpa/inet.h>
+#include <signal.h>
+#include <unistd.h>
 
 #include <boost/program_options.hpp>
 
+// #include "helper.hpp"
 #include "serial.h"
+#include "console.h"
+
+static bool exit_signal = false;
+
+void signal_handler(int signo)
+{
+   if (signo == SIGINT || signo == SIGTERM){
+      std::cout << "Exit signal catch" << std::endl;
+      exit_signal = true;
+   }
+}
+
 
 int main(int argc, const char** argv)
 {
@@ -36,68 +51,93 @@ int main(int argc, const char** argv)
          }
          boost::program_options::notify(vm);
 
-         std::cout << "Current mode: " << mode << "\n";
 
+         // graceful shutdown  
+         if (signal(SIGINT, signal_handler) == SIG_ERR)
+            throw std::runtime_error("Cant catch SIGINT");
+
+         if (signal(SIGTERM, signal_handler) == SIG_ERR)
+            throw std::runtime_error("Cant catch SIGTERM");
+
+         // init serial stream
+         console cons;
          serial serial(port_path, prefix);
          serial.open();
-         std::vector<std::uint8_t> read_bytes;
-         std::thread read_thread(&serial::read, &serial);
-         
-         std::string input_line;
-         while(std::cin) 
-         {
-            try
-            {
-               std::vector<std::uint8_t> bytes;
-               std::uint32_t num;
-               getline(std::cin, input_line);
 
-               if (mode == "hex")
+         std::cout << "Current mode: " << mode << "\n";
+
+         std::thread console_read_thread([&]{
+            while(!exit_signal)
+            {
+               // get user input with 1s timeout
+               const auto& line = cons.read(1000);
+               if (line.size() == 0)
+                  continue;
+
+               // do stuff with input data
+               try
                {
-                  static const std::string snow_prefix = "0x"; 
-                  // validate hex number
-                  if(input_line.compare(0, snow_prefix.size(), snow_prefix) != 0)
-                     throw std::runtime_error("Bad hex value: " + input_line);
+                  std::vector<std::uint8_t> bytes;
+                  std::uint32_t num;
 
-                  // parse hex string to uint32
-                  num = std::stoul(input_line, nullptr, 16);
-               }
+                  if (mode == "hex")
+                  {
+                     static const std::string snow_prefix = "0x"; 
+                     // validate hex number
+                     if(line.compare(0, snow_prefix.size(), snow_prefix) != 0)
+                        throw std::runtime_error("Bad hex value: " + line);
 
-               if (mode == "dec")
-               {  
-                  // parse dec string to uint32
-                  num = std::stoul(input_line, nullptr, 10);
-               }
-
-               std::cout << "parsed value in dec: " << num << "\n";
-
-               // reorder bytes
-               num = htonl(num);
-               std::uint8_t *p = (std::uint8_t*)&num;
-
-               // vector
-               for(int i=0; i<sizeof(num); i++)
-               {     
-                  const std::uint8_t& byte = (std::uint8_t)p[i];
-                  if (byte){
-                     bytes.emplace_back(byte);
+                     // parse hex string to uint32
+                     num = std::stoul(line, nullptr, 16);
                   }
+
+                  if (mode == "dec")
+                  {  
+                     // parse dec string to uint32
+                     num = std::stoul(line, nullptr, 10);
+                  }
+
+                  std::cout << "parsed value in dec: " << num << "\n";
+
+                  // reorder bytes
+                  num = htonl(num);
+                  std::uint8_t *p = (std::uint8_t*)&num;
+
+                  // vector
+                  for(int i=0; i<sizeof(num); i++)
+                  {     
+                     const std::uint8_t& byte = (std::uint8_t)p[i];
+                     if (byte){
+                        bytes.emplace_back(byte);
+                     }
+                  }
+
+                  serial.write(bytes);
                }
-
-               serial.write(bytes);
+               catch(const std::exception& e)
+               {
+                  std::cerr << e.what();
+               }
             }
-            catch(const std::runtime_error& e)
-            {  
-               throw;
-            }
-            catch(const std::exception& e)
+            std::cout << "Exiting console read thread" << std::endl;
+         });
+         std::thread serial_read_thread([&]
+         {
+            while(!exit_signal)
             {
-               std::cerr << e.what();
+               const auto& bytes = serial.read();
+               // parse string to values
+               for(const auto& byte : bytes)
+               {
+                  std::cout << byte << std::endl;
+               }
             }
-         };
+            std::cout << "Exiting serial read thread" << std::endl;
+         });
 
-         read_thread.join();
-
+         console_read_thread.join();
+         serial_read_thread.join();
+         
          return 0;
       }
       catch(const std::exception &e)

@@ -24,6 +24,7 @@ add_executable(
 
     ${PROJECT_SOURCE_DIR}/src/main.cpp
     ${PROJECT_SOURCE_DIR}/src/serial.cpp
+    ${PROJECT_SOURCE_DIR}/src/console.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SERIAL_INCLUDE_DIRS})
