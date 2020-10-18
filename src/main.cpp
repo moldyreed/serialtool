@@ -7,7 +7,7 @@
 
 #include <boost/program_options.hpp>
 
-// #include "helper.hpp"
+#include "helper.hpp"
 #include "serial.h"
 #include "console.h"
 
@@ -20,7 +20,6 @@ void signal_handler(int signo)
       exit_signal = true;
    }
 }
-
 
 int main(int argc, const char** argv)
 {
@@ -36,7 +35,6 @@ int main(int argc, const char** argv)
          boost::program_options::options_description desc("Allowed options");
          desc.add_options()
          ("help", "Shows this message")
-         ("verbose", boost::program_options::value<std::string>(&log_level)->default_value("info"),  "Logging level (trace, debug, info, warning, error, fatal)") 
          ("port", boost::program_options::value<std::string>(&port_path)->default_value("/dev/pts/1"),  "Port path.") 
          ("mode", boost::program_options::value<std::string>(&mode)->default_value("hex"),  "DEC or HEX.") 
          ("prefix", boost::program_options::value<std::uint8_t>(&prefix)->default_value(0xDD),  "Prefix for data sending. From to 0 to 255, 1 byte.") 
@@ -59,7 +57,7 @@ int main(int argc, const char** argv)
          if (signal(SIGTERM, signal_handler) == SIG_ERR)
             throw std::runtime_error("Cant catch SIGTERM");
 
-         // init serial stream
+         // init serial stream and input console
          console cons;
          serial serial(port_path, prefix);
          serial.open();
@@ -90,20 +88,18 @@ int main(int argc, const char** argv)
                      // parse hex string to uint32
                      num = std::stoul(line, nullptr, 16);
                   }
-
-                  if (mode == "dec")
+                  else if (mode == "dec")
                   {  
                      // parse dec string to uint32
                      num = std::stoul(line, nullptr, 10);
                   }
 
-                  std::cout << "parsed value in dec: " << num << "\n";
+                  std::cout << "parsed value \nin dec: " << num << "\n" << 
+                               "in bin: " << get_bin_value(num) << "\n";
 
                   // reorder bytes
                   num = htonl(num);
                   std::uint8_t *p = (std::uint8_t*)&num;
-
-                  // vector
                   for(int i=0; i<sizeof(num); i++)
                   {     
                      const std::uint8_t& byte = (std::uint8_t)p[i];
@@ -116,20 +112,31 @@ int main(int argc, const char** argv)
                }
                catch(const std::exception& e)
                {
-                  std::cerr << e.what();
+                  std::cerr << e.what() << std::endl;
                }
             }
             std::cout << "Exiting console read thread" << std::endl;
          });
+
          std::thread serial_read_thread([&]
          {
             while(!exit_signal)
             {
-               const auto& bytes = serial.read();
-               // parse string to values
-               for(const auto& byte : bytes)
+               try{
+                  const auto& bytes = serial.read();
+                  // print values
+                  for(const auto& byte : bytes)
+                  {
+                     if (mode == "hex")
+                        std::cout << get_hex_value(byte) << ' ';
+                     else if (mode == "dec")
+                        std::cout << unsigned(byte) << ' ';
+                  }
+                  std::cout << std::endl;
+               }
+               catch(const std::exception& e)
                {
-                  std::cout << byte << std::endl;
+                  std::cerr << e.what() << std::endl;
                }
             }
             std::cout << "Exiting serial read thread" << std::endl;

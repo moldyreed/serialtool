@@ -13,8 +13,8 @@ std::string console::read(const time_t t)
     std::string line;
     int ret = 0;
     
-    ret = poll(&pfd, 1, t);  // timeout of 1000ms
-    if(ret == 1) // there is something to read
+    ret = poll(&pfd, 1, t);     // timeout of 1000ms
+    if(ret == 1)                // there is something to read
     {
         std::getline(std::cin, line);
     }
@@ -23,14 +23,4 @@ std::string console::read(const time_t t)
         std::cout << "Error: " << strerror(errno) << std::endl;
     }
     return line;
-}
-
-void console::write(const std::string& str)
-{
-	std::cout << str;
-}
-
-void console::operator<<(const std::string& str)
-{
-	std::cout << str;
 }

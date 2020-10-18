@@ -13,6 +13,7 @@ serial::serial(	const std::string& port_path,
 serial::~serial()
 {
 	_serial_port.Close();
+	std::cout << "closing seria port";
 }
 
 void serial::open()
@@ -29,16 +30,12 @@ std::string serial::readline()
 std::vector<std::uint8_t> serial::read()
 {
 	std::vector<std::uint8_t> bytes;
-	std::uint8_t byte;
-	// wait for \r data on the other side 
-	while(true)
+	char byte;
+	while(_serial_port.get(byte))
 	{
-		_serial_port >> byte;
-		if (byte == 0x0D || byte == 0x0A)
+		if (byte == 0x0D || byte == 0x0A || byte == 0x03) // \r or \n or end of text
 			break;
-		else
-			std::cout << (0xFF && byte ) << std::endl;
-
+		bytes.emplace_back((std::uint8_t)byte);
 	}
 	return bytes;
 }
